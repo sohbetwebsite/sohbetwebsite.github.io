@@ -1,0 +1,72 @@
+ame: goruntulusohbet
+version: 'version'
+summary: any summary
+description: |
+  Any description
+confinement: strict
+icon: path-to-logo.png
+base: core20
+grade: stable
+
+architectures:
+  - build-on: amd64
+
+parts:
+  myapp:
+    plugin: nil
+    source: .
+    source-type: local
+    build-packages:
+    - fpc
+    - lazarus
+    - lcl
+    - lcl-utils
+    - build-essential
+    - libqt5pas-dev
+    stage-packages:
+    - libqt5pas1
+    - libxinerama1
+    override-build: |  
+      lazbuild -B --ws=qt5 myapp.lpi 
+      # Here you have to install (or copy) all the files of your project which you would like to distribute to $SNAPCRAFT_PART_INSTALL/ e.g. the compiled binary, icons and language files
+      cp -r languages $SNAPCRAFT_PART_INSTALL/
+      install myapp $SNAPCRAFT_PART_INSTALL/
+      install myapp.desktop $SNAPCRAFT_PART_INSTALL/
+      install myapp.ico $SNAPCRAFT_PART_INSTALL/
+      install myapp.png $SNAPCRAFT_PART_INSTALL/
+    stage: 
+    - lib
+    - usr
+    - etc
+    # make sure that you stage the files and folders to which you have installed (copied) above!
+    - myapp
+    - languages
+    - myapp.desktop
+    - myapp.ico
+    - myapp.png
+  cleanup: # this will make your snap small but keeps the needed libraries
+    after: [myapp]
+    plugin: nil
+    build-snaps: [kde-frameworks-5-91-qt-5-15-3-core20]
+    override-prime: |
+      set -eux
+      for snap in "kde-frameworks-5-91-qt-5-15-3-core20"; do  # List all content-snaps you're using here
+        cd "/snap/$snap/current" && find . -type f,l -exec rm -f "$SNAPCRAFT_PRIME/{}" "$SNAPCRAFT_PRIME/usr/{}" \;
+      done
+      for cruft in bug lintian man icons; do
+        rm -rf $SNAPCRAFT_PRIME/usr/share/$cruft
+      done
+      find $SNAPCRAFT_PRIME/usr/share/doc/ -type f -not -name 'copyright' -delete
+      find $SNAPCRAFT_PRIME/usr/share -type d -empty -delete
+      find $SNAPCRAFT_PRIME/usr/lib -type f,l -name 'libQt*.so*' ! -name 'libQt5Pas*.so*' -delete
+
+apps:
+  myapp:
+    extensions:
+      - kde-neon # Don't remove this extension for it provides access to Qt5!
+    command: myapp # to change: the command on which the app gets started
+    desktop: myapp.desktop # to change: the path to the desktop file which will be used to create the entry in the start menu etc.
+    plugs:
+    - home
+    - network
+    - network-bind
